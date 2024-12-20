@@ -44,7 +44,8 @@ logging.warning("This should be run inside a container with root permission to e
 MAX_WORKER_COUNT = int(os.environ.get("MAX_WORKER_COUNT", str(os.cpu_count() * 2)))
 logging.info(f"Setting MAX_WORKER_COUNT = {MAX_WORKER_COUNT}")
 
-S3_ENDPOINT = get_env("S3_ENDPOINT")
+S3_WRITE_ENDPOINT = get_env("S3_WRITE_ENDPOINT")
+S3_READ_ENDPOINT = get_env("S3_READ_ENDPOINT")
 S3_BUCKET_NAME = get_env("S3_BUCKET_NAME")
 S3_ACCESS_KEY = get_env("S3_ACCESS_KEY")
 S3_PRIVATE_KEY = get_env("S3_PRIVATE_KEY")
@@ -58,6 +59,8 @@ def create_app():
         info=Info(title="screenberry API", version="1.0.0"),
         servers=[
             Server(url="http://127.0.0.1:8082"),
+            Server(url="http://127.0.0.1:8080"),
+            Server(url="https://screenberry.baonq.me")
         ],
     )
     return flask_app
@@ -204,6 +207,7 @@ def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequ
         return {
             "status": "success",
             "time_total_ms": round((time.time() - time_start) * 1000),
+            "domain": path.domain,
             "result": {
                 "screenshot_presigned_url": screenshot_presigned_url,
                 "page_html_presigned_url": page_html_presigned_url,
@@ -232,9 +236,9 @@ def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequ
 def upload_s3(filename, data, content_type, link_expire_seconds=24 * 60 * 60):
 
     # Initialize S3 client with custom endpoint and disable SSL verification if provided
-    s3_client = boto3.client(
+    s3_write_client = boto3.client(
         's3',
-        endpoint_url=S3_ENDPOINT,
+        endpoint_url=S3_WRITE_ENDPOINT,
         aws_access_key_id=S3_ACCESS_KEY,
         aws_secret_access_key=S3_PRIVATE_KEY,
         region_name="vn",
@@ -242,11 +246,20 @@ def upload_s3(filename, data, content_type, link_expire_seconds=24 * 60 * 60):
     )
 
     # Upload JPG to S3
-    s3_client.upload_fileobj(data, S3_BUCKET_NAME, filename, ExtraArgs={'ContentType': content_type})
+    s3_write_client.upload_fileobj(data, S3_BUCKET_NAME, filename, ExtraArgs={'ContentType': content_type})
     logging.info(f"Uploaded to s3://{S3_BUCKET_NAME}/{filename}")
 
+    s3_read_client = boto3.client(
+        's3',
+        endpoint_url=S3_READ_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_PRIVATE_KEY,
+        region_name="vn",
+        verify=False
+    )
+
     # Generate pre-signed URL (7 days)
-    return s3_client.generate_presigned_url(
+    return s3_read_client.generate_presigned_url(
         'get_object',
         Params={'Bucket': S3_BUCKET_NAME, 'Key': filename},
         ExpiresIn=link_expire_seconds # 7 * 24 * 60 * 60  # 7 days in seconds

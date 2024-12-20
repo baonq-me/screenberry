@@ -7,7 +7,8 @@ services:
         - linux/amd64
       #  - linux/aarch64
       dockerfile: Dockerfile
-    env_file: .env
+    env_file: 
+    - .env
     image: quocbao747/screenberry:1.0
     container_name: screenberry
     hostname: screenberry
@@ -85,9 +86,49 @@ services:
         limits:
           memory: 1024M
 
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    env_file:
+      - .env
+    ports:
+      - "9000:9000" # MinIO Console
+      - "9001:9001" # MinIO Web UI
+    environment:
+      - MINIO_ROOT_USER=${S3_ACCESS_KEY}  # Set the access key
+      - MINIO_ROOT_PASSWORD=${S3_PRIVATE_KEY}  # Set the secret key
+    volumes:
+      - minio_data:/data  # Persistent data storage
+    networks:
+      - screenberry-network
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /data/$S3_BUCKET_NAME && exec minio server /data --console-address :9001"]
+
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    ports:
+      - "8443:443" # HTTPS port for external access
+      - "8080:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/selfsigned.crt:/certs/selfsigned.crt
+      - ./caddy/selfsigned.key:/certs/selfsigned.key
+      #- caddy_data:/data
+      #- caddy_config:/config
+    networks:
+      - screenberry-network
+    environment:
+      - CADDY_TLS_CERTIFICATE=/certs/selfsigned.crt
+      - CADDY_TLS_KEY=/certs/selfsigned.key
 
 networks:
   screenberry-network:
 
 volumes:
   redisdata:
+  minio_data:
+  #caddy_data:
+  #caddy_config:
+
+
