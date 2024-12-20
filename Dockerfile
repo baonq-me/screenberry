@@ -63,7 +63,7 @@ RUN CMAKE_BUILD_PARALLEL_LEVEL=$(nproc) pip install --no-cache-dir -r ./requirem
 
 # Build tesseract for OCR
 #FROM quocbao747/alpine-tesseract:3.13-5.5.0 AS tesseract-builder
-FROM alpine:3.13 AS tesseract-builder
+FROM alpine:3.19 AS tesseract-builder
 
 WORKDIR /build
 
@@ -90,29 +90,25 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-
 # Copy OpenCV from builder stage
 COPY --from=opencv-builder /usr/local /usr/local
 
-# Install runtime dependencies
-#RUN apk add --update --no-cache \
-#    libjpeg-turbo \
-#    libpng \
-#    libstdc++
-
-
 # Copy tesseract
-RUN  apk add --update --no-cache leptonica libgomp
 ENV TESSDATA_PREFIX /usr/local/share/tessdata
 COPY --from=tesseract-builder /usr/local/bin/tesseract /usr/local/bin/tesseract
 COPY --from=tesseract-builder /usr/local/share/tessdata /usr/local/share/tessdata
 COPY --from=tesseract-builder /build/eng.traineddata /usr/local/share/tessdata/eng.traineddata
 COPY --from=tesseract-builder /build/vie.traineddata /usr/local/share/tessdata/vie.traineddata
 
-
 # Copy app
 COPY --from=app-builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
 COPY --from=app-builder /usr/local/bin/gunicorn /usr/local/bin/gunicorn
+
+RUN apk add --update --no-cache \
+    leptonica-dev \
+    libgomp tiff-dev \
+    libjpeg-turbo \
+    libpng
 
 ADD models /app/models
 ADD utils /app/utils
