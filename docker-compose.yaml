@@ -1,0 +1,93 @@
+services:
+
+  screenberry:
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+      #  - linux/aarch64
+      dockerfile: Dockerfile
+    env_file: .env
+    image: quocbao747/screenberry:1.0
+    container_name: screenberry
+    hostname: screenberry
+    restart: always
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    platform: linux/amd64
+    ports:
+      - "8082:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+    #  replicas: 1
+    networks:
+      - screenberry-network
+
+  selenium-firefox:
+    image: selenium/node-firefox:4.25.0
+    restart: always
+    shm_size: '2gb'
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+    depends_on:
+      - selenium-hub
+    environment:
+      SE_EVENT_BUS_HOST: selenium-hub
+      SE_EVENT_BUS_PUBLISH_PORT: 4442
+      SE_EVENT_BUS_SUBSCRIBE_PORT: 4443
+      SE_NODE_OVERRIDE_MAX_SESSIONS: true
+      SE_NODE_MAX_SESSIONS: 3
+      SE_ENABLE_TRACING: false
+    scale: 2
+    networks:
+      - screenberry-network
+
+  selenium-hub:
+    image: selenium/hub:4.25.0
+    container_name: selenium-hub
+    restart: always
+    ports:
+      - "4444:4444"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+    networks:
+      - screenberry-network
+
+
+  redis:
+    container_name: redis
+    # env_file: './docker/docker.env'
+    image: bitnami/redis:7.2-debian-11
+    restart: always
+    command: /opt/bitnami/scripts/redis/run.sh --maxmemory 2048mb
+    ports:
+      - "6379:6379"
+    environment:
+      #- REDIS_PASSWORD=
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_IO_THREADS=4
+      - REDIS_IO_THREADS_DO_READ=yes
+    volumes:
+      - "redisdata:/bitnami/redis/data"
+    networks:
+      - screenberry-network
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+
+networks:
+  screenberry-network:
+
+volumes:
+  redisdata:
