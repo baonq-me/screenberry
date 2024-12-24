@@ -45,7 +45,7 @@ services:
       SE_NODE_OVERRIDE_MAX_SESSIONS: true
       SE_NODE_MAX_SESSIONS: 3
       SE_ENABLE_TRACING: false
-    scale: 2
+    scale: 1
     networks:
       - screenberry-network
 
@@ -92,7 +92,7 @@ services:
     env_file:
       - .env
     ports:
-      - "9000:9000" # MinIO Console
+    #  - "9000:9000" # MinIO Console
       - "9001:9001" # MinIO Web UI
     environment:
       - MINIO_ROOT_USER=${S3_ACCESS_KEY}  # Set the access key
@@ -112,15 +112,11 @@ services:
       - "8080:80"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
-      - ./caddy/selfsigned.crt:/certs/selfsigned.crt
-      - ./caddy/selfsigned.key:/certs/selfsigned.key
-      #- caddy_data:/data
-      #- caddy_config:/config
+    #  - ./caddy/selfsigned.crt:/certs/selfsigned.crt
+    #  - ./caddy/selfsigned.key:/certs/selfsigned.key
     networks:
       - screenberry-network
-    environment:
-      - CADDY_TLS_CERTIFICATE=/certs/selfsigned.crt
-      - CADDY_TLS_KEY=/certs/selfsigned.key
+    entrypoint: ["caddy", "run", "reload", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
 
 networks:
   screenberry-network:
@@ -128,7 +124,3 @@ networks:
 volumes:
   redisdata:
   minio_data:
-  #caddy_data:
-  #caddy_config:
-
-

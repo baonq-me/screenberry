@@ -1,13 +1,26 @@
-http://screenberry.baonq.me {
-        reverse_proxy http://screenberry:8080
+#http://screenberry.baonq.me {
+#        reverse_proxy http://screenberry:8080
+#}
+
+#http://selenium-hub.baonq.me {
+#        reverse_proxy http://selenium-hub:4444
+#}
+
+{
+    log {
+        output stdout
+        format console
+    }
 }
 
-http://selenium-hub.baonq.me {
-        reverse_proxy http://selenium-hub:4444
-}
+:80 {
+        reverse_proxy minio:9000 {
+                header_up Host fluffy-orbit-6vrww4jx9xh4gvv-8080.app.github.dev
+        }
 
-https://screenberry-s3.baonq.me:443 {
-        reverse_proxy /api/* minio:9000
-        reverse_proxy / minio:9001
-        tls /certs/selfsigned.crt /certs/selfsigned.key
+        #handle_path /health_check {
+        #        respond "200_ok" 200
+        #}
+
+        log
 }
