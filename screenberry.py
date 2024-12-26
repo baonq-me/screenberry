@@ -45,7 +45,8 @@ MAX_WORKER_COUNT = int(os.environ.get("MAX_WORKER_COUNT", str(os.cpu_count() * 2
 logging.info(f"Setting MAX_WORKER_COUNT = {MAX_WORKER_COUNT}")
 
 S3_WRITE_ENDPOINT = get_env("S3_WRITE_ENDPOINT")
-S3_READ_ENDPOINT = get_env("S3_READ_ENDPOINT")
+S3_READ_HOSTNAME = get_env("S3_READ_HOSTNAME")
+S3_READ_SCHEME = get_env("S3_READ_SCHEME")
 S3_BUCKET_NAME = get_env("S3_BUCKET_NAME")
 S3_ACCESS_KEY = get_env("S3_ACCESS_KEY")
 S3_PRIVATE_KEY = get_env("S3_PRIVATE_KEY")
@@ -251,7 +252,7 @@ def upload_s3(filename, data, content_type, link_expire_seconds=24 * 60 * 60):
 
     s3_read_client = boto3.client(
         's3',
-        endpoint_url=S3_READ_ENDPOINT,
+        endpoint_url='https://' + S3_READ_HOSTNAME,
         aws_access_key_id=S3_ACCESS_KEY,
         aws_secret_access_key=S3_PRIVATE_KEY,
         region_name="vn",

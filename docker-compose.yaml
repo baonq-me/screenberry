@@ -1,3 +1,21 @@
+configs:
+  caddyfile:
+    content: |
+      :80 {
+          reverse_proxy /${S3_BUCKET_NAME}/* minio:9000 {
+                  header_up Host ${S3_READ_HOSTNAME}
+          }
+
+          reverse_proxy / screenberry:8080
+          reverse_proxy /api/* screenberry:8080
+          reverse_proxy /openapi/* screenberry:8080
+      
+          log {
+              output stdout
+              format console
+          }
+      }
+
 services:
 
   screenberry:
@@ -107,13 +125,14 @@ services:
   caddy:
     image: caddy:latest
     container_name: caddy
+    env_file:
+      - .env
     ports:
       - "8443:443" # HTTPS port for external access
       - "8080:80"
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
-    #  - ./caddy/selfsigned.crt:/certs/selfsigned.crt
-    #  - ./caddy/selfsigned.key:/certs/selfsigned.key
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
     networks:
       - screenberry-network
     entrypoint: ["caddy", "run", "reload", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
