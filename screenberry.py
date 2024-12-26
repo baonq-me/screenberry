@@ -1,31 +1,25 @@
-import hashlib
 import json
 import logging
 import socket
 import time
-import traceback
 import uuid
 from io import BytesIO
 
 import boto3
-import cv2
-import numpy as np
-import pytesseract
-import requests
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image
 from dotenv import load_dotenv
 from flask import Response
 from flask import g
 from flask import request
 from flask_caching import Cache
 from flask_openapi3 import Info, Server, OpenAPI, Tag
+from pyinstrument import Profiler
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.remote_connection import LOGGER
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
-from pyinstrument import Profiler
 
 from models import scan_request
 from utils.ocr_login_detection import ocr_login_detection
