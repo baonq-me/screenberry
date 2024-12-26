@@ -18,3 +18,4 @@ beautifulsoup4==4.12.3
 pytesseract==0.3.13
 numpy==2.2.0
 opencv-python==4.10.0.84
+redis==5.0.1

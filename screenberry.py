@@ -14,6 +14,9 @@ from PIL import Image, ImageEnhance, ImageFilter
 from dotenv import load_dotenv
 from flask import Response
 from flask import g
+from flask import request, abort
+from flask_caching import Cache
+from flask_limiter import Limiter
 from flask_openapi3 import Info, Server, OpenAPI, Tag
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -24,6 +27,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 import time
 import uuid
 from models import scan_request
+from utils import rate_limit
 from utils.utils import *
 
 LOGGER.setLevel(logging.INFO)
@@ -69,7 +73,24 @@ def create_app():
 
 screenberry = create_app()
 
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", 6379)
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
+screenberry.config.from_mapping({
+    "DEBUG": True,
+    "CACHE_TYPE": "RedisCache",
+    "CACHE_REDIS_HOST": REDIS_HOST,
+    "CACHE_REDIS_PORT": REDIS_PORT,
+    "CACHE_REDIS_PASSWORD": REDIS_PASSWORD,
+    "CACHE_KEY_PREFIX": "screenberry_",
+    "CACHE_DEFAULT_TIMEOUT": 300
+})
+
+request_cache = Cache(screenberry)
+
 @screenberry.get('/api/v1/screenshot/domain/<string:domain>')
+@request_cache.cached(timeout=600, unless=lambda: request.args.get("bypass_cache", "0") == "1")
 def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequestParams):
 
     url = "https://" + path.domain
