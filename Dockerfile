@@ -27,6 +27,7 @@ RUN mkdir -p $BUILD_DIR && \
     git clone --depth 1 --branch $OPENCV_VERSION https://github.com/opencv/opencv_contrib.git $BUILD_DIR/opencv_contrib
 
 # Build OpenCV
+# -D WITH_IPP=OFF -> Disable Intel IPP to build on aarch64
 RUN cd $BUILD_DIR/opencv && \
     mkdir build && cd build && \
     cmake \
@@ -40,7 +41,7 @@ RUN cd $BUILD_DIR/opencv && \
         -D BUILD_JAVA=OFF \
         -D WITH_TBB=OFF \
         -D WITH_OPENMP=ON \
-        -D WITH_IPP=ON \
+        -D WITH_IPP=OFF \
         -D WITH_LAPACK=ON \
         -D WITH_EIGEN=ON \
         -D BUILD_SHARED_LIBS=ON \
