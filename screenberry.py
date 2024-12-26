@@ -68,7 +68,7 @@ def create_app():
 
 screenberry = create_app()
 
-@screenberry.get('/v1/screenshot/domain/<string:domain>')
+@screenberry.get('/api/v1/screenshot/domain/<string:domain>')
 def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequestParams):
 
     url = "https://" + path.domain
