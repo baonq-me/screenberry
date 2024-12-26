@@ -10,4 +10,4 @@ Screenshot website, analyze and predict if the site show a login page
 - Text extraction: Tesseract Open Source OCR Engine, image enhancement with Pillow + OpenCV
 - S3 Storage: Minio
 - Request caching: Redis
-- Packaging: Docker compose with Apline base image, manually built to reduce container image size from 2.46 GB to 0.6 GB
+- Packaging: Docker compose with Apline base image, manually built to reduce container image size from 2.46 GB to 0.6 GB (for exchange, performance of Tesseract drop by 80% due to using `musl` on Alpine over `glibc` on other distro)
