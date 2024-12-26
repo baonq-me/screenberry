@@ -8,20 +8,19 @@ import pytesseract
 from utils.utils import remove_vietnamese_diacritics
 import logging
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import Queue, Process
 
 
-def extract_text_using_pytesseract(img, psm, time_start):
+def extract_text_using_pytesseract(img, psm, queue: Queue):
+    time_start = time.time()
 
     try:
         text = pytesseract.image_to_string(Image.fromarray(img), lang="eng+vie", config=f"--oem 3 --psm {psm}")
-        time_taken_ms = round((time.time() - time_start)*1000)
-
-        return text, "", psm, time_taken_ms
+        queue.put((text, "", psm, round((time.time() - time_start)*1000)))
 
     except Exception as e:
         logging.error(e)
-        return "", str(e), 0, round((time.time() - time_start)*1000)
+        queue.put(("", str(e), 0, round((time.time() - time_start)*1000)))
 
 
 def ocr_login_detection(screenshot_image: ImageFile, keywords: list[str]):
@@ -51,33 +50,50 @@ def ocr_login_detection(screenshot_image: ImageFile, keywords: list[str]):
     predict_login_page = False
     list_extracted_text = []
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        futures = {executor.submit(extract_text_using_pytesseract, refined_image, psm, time.time()): psm for psm in range(1, 14)}
-        for future in as_completed(futures):
-            extracted_text, error, psm, time_taken_ms = future.result()
+    process_queue = Queue()
+    processes = []
 
-            if error != "":
-                list_extracted_text.append({
-                    "method": f"osm=3,psm={psm}",
-                    "error": error
-                })
+    for psm in range(1, 14):
+        process = Process(target=extract_text_using_pytesseract, args=(refined_image, psm, process_queue))
+        processes.append(process)
+        process.daemon = True
+        process.start()
+        logging.info(f"Tesseract worker with psm={psm} started")
 
-                continue
+    logging.info("Waiting for all Tesseract workers to finish ...")
+    for process in processes:
+        process.join()
 
-            extracted_text = extracted_text.replace('  ', ' ').replace("\n", " ")
-            extracted_text = extracted_text.encode('ascii', errors='ignore').decode()
-            extracted_text = remove_vietnamese_diacritics(extracted_text.lower())
-            logging.info(f"OCR extracted text in {time_taken_ms} ms -> {extracted_text}")
+    logging.info("Collecting Tesseract results ...")
+    total_time_all_cpu_ms = 0
 
+    while process_queue and not process_queue.empty():
+        extracted_text, error, psm, time_taken_ms = process_queue.get()
+        total_time_all_cpu_ms += time_taken_ms
+        if error != "":
             list_extracted_text.append({
                 "method": f"osm=3,psm={psm}",
-                "text": extracted_text
+                "error": error
             })
 
-            for keyword in keywords:
-                if keyword in extracted_text:
-                    logging.warning(f"[psm={psm}] Possible login form detected in OCR output text with keyword: {keyword}")
-                    predict_login_page = True
-                    break
+            continue
+
+        extracted_text = extracted_text.replace('  ', ' ').replace("\n", " ")
+        extracted_text = extracted_text.encode('ascii', errors='ignore').decode()
+        extracted_text = remove_vietnamese_diacritics(extracted_text.lower())
+        logging.info(f"OCR extracted text in {time_taken_ms} ms -> {extracted_text}")
+
+        list_extracted_text.append({
+            "method": f"osm=3,psm={psm}",
+            "text": extracted_text
+        })
+
+        for keyword in keywords:
+            if keyword in extracted_text:
+                logging.warning(f"[psm={psm}] Possible login form detected in OCR output text with keyword: {keyword}")
+                predict_login_page = True
+                break
+
+    logging.info(f"Total time for all Tesseract workers: {total_time_all_cpu_ms} ms")
 
     return predict_login_page, list_extracted_text

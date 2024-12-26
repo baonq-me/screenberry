@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile
     env_file: 
     - .env
-    image: quocbao747/screenberry:1.1
+    image: quocbao747/screenberry:1.2
     container_name: screenberry
     hostname: screenberry
     restart: always
