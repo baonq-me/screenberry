@@ -104,15 +104,15 @@ COPY --from=tesseract-builder /usr/local/share/tessdata /usr/local/share/tessdat
 COPY --from=tesseract-builder /build/eng.traineddata /usr/local/share/tessdata/eng.traineddata
 COPY --from=tesseract-builder /build/vie.traineddata /usr/local/share/tessdata/vie.traineddata
 
-# Copy app
-COPY --from=app-builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
-COPY --from=app-builder /usr/local/bin/gunicorn /usr/local/bin/gunicorn
-
 RUN apk add --update --no-cache \
     leptonica-dev \
     libgomp tiff-dev \
     libjpeg-turbo \
     libpng
+
+# Copy app
+COPY --from=app-builder /usr/local/bin/gunicorn /usr/local/bin/gunicorn
+COPY --from=app-builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
 
 ADD models /app/models
 ADD utils /app/utils
