@@ -216,7 +216,7 @@ def upload_s3(filename, data, content_type, link_expire_seconds=24 * 60 * 60):
 
     s3_read_client = boto3.client(
         's3',
-        endpoint_url='https://' + S3_READ_HOSTNAME,
+        endpoint_url=S3_READ_SCHEME + '://' + S3_READ_HOSTNAME,
         aws_access_key_id=S3_ACCESS_KEY,
         aws_secret_access_key=S3_PRIVATE_KEY,
         region_name="vn",
