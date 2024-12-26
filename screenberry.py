@@ -25,8 +25,11 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.remote_connection import LOGGER
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
+from pyinstrument import Profiler
 
 from models import scan_request
+from utils.ocr_login_detection import ocr_login_detection
+from utils.script_crawler import script_crawler
 from utils.utils import *
 
 LOGGER.setLevel(logging.INFO)
@@ -91,12 +94,12 @@ request_cache = Cache(screenberry)
 @request_cache.cached(timeout=600, unless=lambda: request.args.get("bypass_cache", "0") == "1")
 def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequestParams):
 
-    url = "https://" + path.domain
-    request_id = uuid.uuid4()
+    # TODO: sanitize input
 
-    logging.info(f"Request id {request_id}: {url}")
+    return _scan_domain(path.domain, int(query.timeout))
 
-    timeout = int(query.timeout)
+
+def get_webdriver(url, timeout):
 
     time_start = time.time()
 
@@ -111,140 +114,88 @@ def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequ
         options=firefox_options
     )
 
-    try:
-        # Set the window size
-        # driver.set_window_size(1920, 1080)
+    # Set the window size
+    # driver.set_window_size(1920, 1080)
 
-        # Navigate to the desired URL
-        driver.get(url)  # Change this to the URL you want to capture
+    logging.info(f"webdriver firefox init took: {time.time() - time_start:.2f} seconds")
 
-        WebDriverWait(driver, timeout).until(expected_conditions.presence_of_element_located((By.TAG_NAME, "body")))
+    time_start = time.time()
+    driver.get(url)
+    WebDriverWait(driver, timeout).until(expected_conditions.presence_of_element_located((By.TAG_NAME, "body")))
 
-        # Wait 5 seconds to load page
-        time.sleep(5)
+    logging.info(f"page load took: {time.time() - time_start:.2f} seconds")
 
-        # Get page title
-        site_title = driver.title
-        logging.info(f"Screenshot taken for site: {site_title}")
-        current_url = driver.current_url
-        logging.info(f"Current url: {current_url}")
+    return driver
 
-        # Extract script
-        script_tags = driver.find_elements(By.TAG_NAME, "script")
-        scripts = []
-        for script in script_tags:
-            src = script.get_attribute('src')
-            if src:
-                logging.info(f"src: {src}")
-                content = requests.get(src).text
-                content_f64 = content[:64]
-                content_sha256 = hashlib.sha256(content.encode('utf-8')).hexdigest()
-                scripts.append({"type": "external", "src": src, "content_f64": content_f64, "content_sha256": content_sha256})
-            else:
-                content = script.get_attribute('innerHTML')
-                content_f64 = content[:64]
-                content_sha256 = hashlib.sha256(content.encode('utf-8')).hexdigest()
-                scripts.append({"type": "inline", "content_f64": content_f64, "content_sha256": content_sha256})
 
-        # Get page source html
-        page_html = driver.page_source
-        page_html_presigned_url = upload_s3(f"html_{request_id}.html", BytesIO(bytes(page_html, 'utf-8')), "text/html", link_expire_seconds=7 * 24 * 60 * 60)
-        logging.info(page_html_presigned_url)
+def _scan_domain(domain: str, timeout: int):
 
-        # Capture screenshot in PNG format directly into memory
-        screenshot_png = driver.get_screenshot_as_png()
+    profiler = Profiler()
+    profiler.start()
 
-        # Convert the screenshot to a PIL image
-        screenshot_image = Image.open(BytesIO(screenshot_png))
+    url = "https://" + domain
+    request_id = uuid.uuid4()
 
-        # Preprocess the image
-        # Convert to grayscale
-        gray_image = screenshot_image.convert("L")
+    logging.info(f"Request id {request_id}: {url}")
 
-        # Enhance the image contrast
-        enhancer = ImageEnhance.Contrast(gray_image)
-        enhanced_image = enhancer.enhance(2.0)
+    # Create a remote WebDriver session
+    driver = get_webdriver(url, timeout)
 
-        # Apply a slight blur to remove noise
-        blurred_image = enhanced_image.filter(ImageFilter.MedianFilter(size=3))
+    # Get page title
+    site_title = driver.title
+    logging.info(f"Screenshot taken for site: {site_title}")
+    current_url = driver.current_url
+    logging.info(f"Current url: {current_url}")
 
-        # Convert the image to OpenCV format for additional processing
-        open_cv_image = np.array(blurred_image)
+    # Extract script
+    script_tags = driver.find_elements(By.TAG_NAME, "script")
+    scripts = script_crawler(script_tags)
 
-        # Apply thresholding to binarize the image
-        _, refined_image = cv2.threshold(open_cv_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # Get page source html
+    page_html = driver.page_source
+    page_html_presigned_url = upload_s3(f"html_{request_id}.html", BytesIO(bytes(page_html, 'utf-8')), "text/html", link_expire_seconds=7 * 24 * 60 * 60)
+    logging.info(page_html_presigned_url)
 
-        # Extract text using pytesseract
-        # https://stackoverflow.com/questions/44619077/pytesseract-ocr-multiple-config-options
-        # Automatic page segmentation with Orientation and script detection, use Long short-term memory engine.
-        # psm = 1,3,4,9 should work
+    # Capture screenshot in PNG format directly into memory
+    screenshot_png = driver.get_screenshot_as_png()
 
-        predict_login_page = False
-        extracted_text = ''
-        for psm in range(1,14):
+    # Convert the screenshot to a PIL image
+    screenshot_image = Image.open(BytesIO(screenshot_png))
 
-            if predict_login_page:
-                break
+    ocr_time_start = time.time()
+    predict_login_page, list_extracted_text = ocr_login_detection(screenshot_image, ["login", "log in", "sign in", "single sign", "dang nhap", "password", "mat khau"])
+    logging.info(f"OCR login detection took: {time.time() - ocr_time_start:.2f} seconds")
 
-            try:
-                extracted_text = pytesseract.image_to_string(Image.fromarray(refined_image), lang="eng+vie", config=f"--oem 3 --psm {psm}")
-            except Exception as ex:
-                logging.error(f"Error with psm = {psm}: {ex}")
-                continue
+    # Convert PNG to JPG
+    img = Image.open(BytesIO(screenshot_png)).convert("RGB")
+    img_bytes = BytesIO()
+    img.save(img_bytes, format="JPEG", quality=70)
+    img_bytes.seek(0)  # Reset pointer to the beginning
 
-            extracted_text = remove_vietnamese_diacritics(extracted_text.lower()).replace('  ', ' ').replace("\n", " ").encode('ascii', errors='ignore').decode()
-            # logging.info(f"[psm={psm}] OCR output text: {extracted_text}")
+    # Generate pre-signed URL (7 days)
+    screenshot_presigned_url = upload_s3(f"screenshot_{request_id}.jpg", img_bytes, "image/jpeg", link_expire_seconds=7 * 24 * 60 * 60)
+    logging.info(screenshot_presigned_url)
 
-            for keyword in ["login", "log in", "sign in", "single sign", "dang nhap", "password", "mat khau"]:
-                if keyword in extracted_text:
-                    logging.warning(f"[psm={psm}] Possible login form detected in OCR output text with keyword: {keyword}")
-                    predict_login_page = True
-                    break
+    profiler.stop()
+    profiler_presigned_url = upload_s3(f"profiler_{request_id}.html", BytesIO(profiler.output_html().encode()), "text/html", link_expire_seconds=7 * 24 * 60 * 60)
 
-                if keyword in remove_vietnamese_diacritics(site_title.lower()):
-                    logging.warning(f"[psm={psm}] Possible login form detected in page title text with keyword: {keyword}")
-                    predict_login_page = True
-                    break
+    # Quit the driver
+    logging.info("Shutting down driver ...")
+    driver.quit()
 
-        logging.info(f"OCR extracted text: {extracted_text}")
-
-        # Convert PNG to JPG
-        img = Image.open(BytesIO(screenshot_png)).convert("RGB")
-        img_bytes = BytesIO()
-        img.save(img_bytes, format="JPEG", quality=70)
-        img_bytes.seek(0)  # Reset pointer to the beginning
-
-        # Generate pre-signed URL (7 days)
-        screenshot_presigned_url = upload_s3(f"screenshot_{request_id}.jpg", img_bytes, "image/jpeg", link_expire_seconds=7 * 24 * 60 * 60)
-        logging.info(screenshot_presigned_url)
-
-        return {
-            "status": "success",
-            "time_total_ms": round((time.time() - time_start) * 1000),
-            "domain": path.domain,
-            "result": {
-                "screenshot_presigned_url": screenshot_presigned_url,
-                "page_html_presigned_url": page_html_presigned_url,
-                "site_title": site_title,
-                "predict_login_page": predict_login_page,
-                "predict_login_page_text": "" if not predict_login_page else extracted_text,
-                "scripts": scripts
-            }
+    return {
+        "status": "success",
+        "domain": domain,
+        "result": {
+            "screenshot_presigned_url": screenshot_presigned_url,
+            "page_html_presigned_url": page_html_presigned_url,
+            "profiler_presigned_url": profiler_presigned_url,
+            "site_title": site_title,
+            "predict_login_page": predict_login_page,
+            "extracted_text": list_extracted_text,
+            "scripts": scripts
         }
-
-    except Exception as ex:
-        logging.error(ex)
-        traceback.print_exc()
-
-        return {
-            "status": "error",
-            "exception": ex
-        }
-
-    finally:
-        # Quit the driver
-        logging.info("Shutting down driver ...")
-        driver.quit()
+    }
 
 
 def upload_s3(filename, data, content_type, link_expire_seconds=24 * 60 * 60):
