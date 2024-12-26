@@ -58,6 +58,9 @@ RUN apk add --no-cache \
     git \
     linux-headers
 
+# Slow build, should run seperate to prevent rebuilding when requirements.txt is updated
+RUN CMAKE_BUILD_PARALLEL_LEVEL=$(nproc) pip install --no-cache-dir opencv-python==4.10.0.84
+
 COPY ./requirements.txt ./
 RUN CMAKE_BUILD_PARALLEL_LEVEL=$(nproc) pip install --no-cache-dir -r ./requirements.txt
 
