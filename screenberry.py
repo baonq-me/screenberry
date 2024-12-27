@@ -134,8 +134,14 @@ def _scan_domain(domain: str, timeout: int):
 
     logging.info(f"Request id {request_id}: {url}")
 
-    # Create a remote WebDriver session
-    driver = get_webdriver(url, timeout)
+    try:
+        # Create a remote WebDriver session
+        driver = get_webdriver(url, timeout)
+    except Exception as e:
+        logging.error(e)
+        return {
+            "error": str(e)
+        }
 
     # Get page title
     site_title = driver.title
