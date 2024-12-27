@@ -49,6 +49,8 @@ S3_BUCKET_NAME = get_env("S3_BUCKET_NAME")
 S3_ACCESS_KEY = get_env("S3_ACCESS_KEY")
 S3_PRIVATE_KEY = get_env("S3_PRIVATE_KEY")
 
+APP_NAME = get_env("APP_NAME")
+
 SELENIUM_REMOTE_API = os.environ.get("SELENIUM_REMOTE_SERVER", "http://localhost:4444") + "/wd/hub"
 
 
@@ -253,7 +255,7 @@ def index():
         "links": {
             "doc": "...",
         },
-        "backend": socket.gethostname(),
+        "backend": APP_NAME + "-" + socket.gethostname(),
         "version": "1.0"
     }
 

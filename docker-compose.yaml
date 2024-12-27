@@ -28,20 +28,21 @@ services:
     env_file: 
     - .env
     image: quocbao747/screenberry:1.2
-    container_name: screenberry
-    hostname: screenberry
+    #container_name: screenberry
+    #hostname: screenberry
+    domainname: screenberry
     restart: always
     environment:
       TZ: Asia/Ho_Chi_Minh
     platform: linux/amd64
     ports:
-      - "8082:8080"
+      - "8090-8093:8080"
     deploy:
       resources:
         limits:
           cpus: '4'
           memory: 4G
-    #  replicas: 1
+      replicas: 4
     networks:
       - screenberry-network
 
