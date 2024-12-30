@@ -94,7 +94,7 @@ def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequ
 
     # TODO: sanitize input
 
-    return _scan_domain(path.domain, query.uri_scheme, int(query.timeout))
+    return _scan_domain(path.domain, query.uri_scheme, query.pageload_wait_seconds, int(query.timeout))
 
 
 def get_webdriver(url, timeout):
@@ -134,7 +134,7 @@ def get_webdriver(url, timeout):
     return driver
 
 
-def _scan_domain(domain: str, uri_scheme: str, timeout: int):
+def _scan_domain(domain: str, uri_scheme: str, pageload_wait_seconds: float, timeout: int):
 
     profiler = Profiler()
     profiler.start()
@@ -147,6 +147,7 @@ def _scan_domain(domain: str, uri_scheme: str, timeout: int):
     try:
         # Create a remote WebDriver session
         driver = get_webdriver(url, timeout)
+        time.sleep(pageload_wait_seconds)
     except WebDriverException as e:
         logging.error(e)
         return {
