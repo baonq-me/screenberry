@@ -104,6 +104,11 @@ def get_webdriver(url, timeout):
     firefox_options.add_argument("--height=1080")
     firefox_options.set_preference("layout.css.devPixelsPerPx", "2.0")
 
+    firefox_profile = webdriver.FirefoxProfile()
+    firefox_profile.accept_untrusted_certs = True
+
+    firefox_options.profile = firefox_profile
+
     # Create a remote WebDriver session
     driver = webdriver.Remote(
         command_executor=SELENIUM_REMOTE_API,

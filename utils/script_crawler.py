@@ -14,7 +14,7 @@ from selenium.webdriver.remote.webelement import WebElement
 def fetch(url):
 
     time_start = time.time()
-    response_text = requests.get(url).text
+    response_text = requests.get(url, verify=False).text
     content_f64 = response_text[:64]
     content_sha256 = hashlib.sha256(response_text.encode('utf-8')).hexdigest()
 
