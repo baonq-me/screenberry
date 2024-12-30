@@ -216,6 +216,7 @@ def _scan_domain(domain: str, uri_scheme: str, pageload_wait_seconds: float, tim
         "status": "success",
         "domain": domain,
         "uri_scheme": uri_scheme,
+        "request_id": request_id,
         "result": {
             "screenshot_presigned_url": screenshot_presigned_url,
             "page_html_presigned_url": page_html_presigned_url,
