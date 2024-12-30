@@ -94,7 +94,7 @@ def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequ
 
     # TODO: sanitize input
 
-    return _scan_domain(path.domain, query.uri_scheme, query.pageload_wait_seconds, int(query.timeout))
+    return _scan_domain(path.domain, query.uri_scheme, float(query.pageload_wait_seconds), int(query.timeout))
 
 
 def get_webdriver(url, timeout):
