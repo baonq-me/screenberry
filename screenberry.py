@@ -170,7 +170,7 @@ def _scan_domain(domain: str, timeout: int):
     screenshot_image = Image.open(BytesIO(screenshot_png))
 
     ocr_time_start = time.time()
-    predict_login_page, list_extracted_text = ocr_login_detection(screenshot_image, ["login", "log in", "sign in", "single sign", "dang nhap", "password", "mat khau"])
+    predict_login_page, predict_login_page_psm, list_extracted_text = ocr_login_detection(screenshot_image, ["login", "log in", "sign in", "single sign", "dang nhap", "password", "mat khau"])
     logging.info(f"OCR login detection took: {time.time() - ocr_time_start:.2f} seconds")
 
     # Convert PNG to JPG
@@ -199,6 +199,7 @@ def _scan_domain(domain: str, timeout: int):
             "profiler_presigned_url": profiler_presigned_url,
             "site_title": site_title,
             "predict_login_page": predict_login_page,
+            "predict_login_page_psm": predict_login_page_psm,
             "extracted_text": list_extracted_text,
             "scripts": scripts
         }

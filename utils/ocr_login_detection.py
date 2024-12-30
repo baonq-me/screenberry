@@ -48,6 +48,7 @@ def ocr_login_detection(screenshot_image: ImageFile, keywords: list[str]):
     # psm = 1,3,4,9 should work
 
     predict_login_page = False
+    predict_login_page_psm = -1
     list_extracted_text = []
 
     process_queue = Queue()
@@ -92,8 +93,9 @@ def ocr_login_detection(screenshot_image: ImageFile, keywords: list[str]):
             if keyword in extracted_text:
                 logging.warning(f"[psm={psm}] Possible login form detected in OCR output text with keyword: {keyword}")
                 predict_login_page = True
+                predict_login_page_psm = psm
                 break
 
     logging.info(f"Total time for all Tesseract workers: {total_time_all_cpu_ms} ms")
 
-    return predict_login_page, list_extracted_text
+    return predict_login_page, predict_login_page_psm, list_extracted_text
