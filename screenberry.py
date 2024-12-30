@@ -158,6 +158,16 @@ def _scan_domain(domain: str, uri_scheme: str, timeout: int):
     script_tags = driver.find_elements(By.TAG_NAME, "script")
     scripts = script_crawler(script_tags)
 
+    # Extract hrefs
+    hrefs = []
+    elems = driver.find_elements(by=By.XPATH, value="//a[@href]")
+    for elem in elems:
+        href = elem.get_attribute("href")
+        logging.info(f"Found href: {href}")
+        hrefs.append(href)
+    logging.info(f"Found {len(hrefs)} hrefs before duplicate removal")
+    hrefs = list(set(hrefs))        # Dedup
+
     # Get page source html
     page_html = driver.page_source
     page_html_presigned_url = upload_s3(f"html_{request_id}.html", BytesIO(bytes(page_html, 'utf-8')), "text/html", link_expire_seconds=7 * 24 * 60 * 60)
@@ -202,7 +212,8 @@ def _scan_domain(domain: str, uri_scheme: str, timeout: int):
             "predict_login_page": predict_login_page,
             "predict_login_page_psm": predict_login_page_psm,
             "extracted_text": list_extracted_text,
-            "scripts": scripts
+            "scripts": scripts,
+            "hrefs": hrefs
         }
     }
 
