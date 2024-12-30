@@ -92,7 +92,7 @@ def scan_domain(path: scan_request.DomainRequest, query: scan_request.DomainRequ
 
     # TODO: sanitize input
 
-    return _scan_domain(path.domain, int(query.timeout))
+    return _scan_domain(path.domain, query.uri_scheme, int(query.timeout))
 
 
 def get_webdriver(url, timeout):
@@ -129,12 +129,12 @@ def get_webdriver(url, timeout):
     return driver
 
 
-def _scan_domain(domain: str, timeout: int):
+def _scan_domain(domain: str, uri_scheme: str, timeout: int):
 
     profiler = Profiler()
     profiler.start()
 
-    url = "https://" + domain
+    url = uri_scheme + "://" + domain
     request_id = uuid.uuid4()
 
     logging.info(f"Request id {request_id}: {url}")
@@ -193,6 +193,7 @@ def _scan_domain(domain: str, timeout: int):
     return {
         "status": "success",
         "domain": domain,
+        "uri_scheme": uri_scheme,
         "result": {
             "screenshot_presigned_url": screenshot_presigned_url,
             "page_html_presigned_url": page_html_presigned_url,

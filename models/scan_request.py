@@ -8,3 +8,4 @@ class DomainRequest(BaseModel):
 class DomainRequestParams(BaseModel):
     timeout: int = Field(description="Timeout in seconds", default="3", example="3")
     bypass_cache: int = Field(description="Set to 1 to bypass cache", default="0", example="0")
+    uri_scheme: str = Field(description="URL schemes: http or https", default="https", example="https")
