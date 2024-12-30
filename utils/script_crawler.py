@@ -38,7 +38,12 @@ def script_crawler(script_tags: List[WebElement]):
     list_url = []
 
     for script in script_tags:
-        src = script.get_attribute('src')
+        try:
+            src = script.get_attribute('src')
+        except Exception as e:
+            scripts.append({"error": str(e)})
+            continue
+
         if src:
             list_url.append(src)
         else:
