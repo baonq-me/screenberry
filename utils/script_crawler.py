@@ -45,9 +45,15 @@ def script_crawler(script_tags: List[WebElement]):
             continue
 
         if src:
+            if "http" not in src and "https" not in src:
+                continue
+
             list_url.append(src)
         else:
             content = script.get_attribute('innerHTML')
+            if len(content or "") == 0:
+                continue
+
             content_f64 = content[:64]
             content_sha256 = hashlib.sha256(content.encode('utf-8')).hexdigest()
             scripts.append({"type": "inline", "content_f64": content_f64, "content_sha256": content_sha256})
