@@ -2,6 +2,7 @@ import json
 import logging
 import socket
 import time
+import traceback
 import uuid
 from io import BytesIO
 
@@ -15,6 +16,7 @@ from flask_caching import Cache
 from flask_openapi3 import Info, Server, OpenAPI, Tag
 from pyinstrument import Profiler
 from selenium import webdriver
+from selenium.common import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.remote.remote_connection import LOGGER
@@ -106,14 +108,17 @@ def get_webdriver(url, timeout):
 
     firefox_profile = webdriver.FirefoxProfile()
     firefox_profile.accept_untrusted_certs = True
+    firefox_profile.set_preference("http.response.timeout", timeout)
+    firefox_profile.set_preference("dom.max_script_run_time", timeout)
 
     firefox_options.profile = firefox_profile
 
     # Create a remote WebDriver session
     driver = webdriver.Remote(
         command_executor=SELENIUM_REMOTE_API,
-        options=firefox_options
+        options=firefox_options,
     )
+    driver.set_page_load_timeout(timeout)
 
     # Set the window size
     # driver.set_window_size(1920, 1080)
@@ -122,7 +127,7 @@ def get_webdriver(url, timeout):
 
     time_start = time.time()
     driver.get(url)
-    WebDriverWait(driver, timeout).until(expected_conditions.presence_of_element_located((By.TAG_NAME, "body")))
+    WebDriverWait(driver, 1).until(expected_conditions.presence_of_element_located((By.TAG_NAME, "body")))
 
     logging.info(f"page load took: {time.time() - time_start:.2f} seconds")
 
@@ -142,8 +147,14 @@ def _scan_domain(domain: str, uri_scheme: str, timeout: int):
     try:
         # Create a remote WebDriver session
         driver = get_webdriver(url, timeout)
+    except WebDriverException as e:
+        logging.error(e)
+        return {
+            "error": str(e.msg)
+        }
     except Exception as e:
         logging.error(e)
+        traceback.print_exc()
         return {
             "error": str(e)
         }
